@@ -1,18 +1,20 @@
-#Enter your Atera API Key and Custom Customer Field that contains the webroot key.
-$AteraAPIKey = 'YOUR API KEY HERE'
-$FieldName = 'WebrootKey'
+#Created by Cory Coddington 2022
+#Enter your Atera API Key and Custom Field that contains the webroot key.
+$AteraAPIKey = 'API KEY'
+$FieldName = 'WebRootKey'
 
 #Check if webroot is installed.
 $service = Get-Service -Name WRSVC -ErrorAction SilentlyContinue
-if ($service.Length -gt 0) {
-    write-host "Webroot Exists already. Exiting.."
+if (-Not $service -eq $null -Or $service.Status -eq "Running") {
+    write-host "Webroot appears to be running and installed. Exiting, please uninstall webroot before proceeding"
     Exit
     }
+    Write-Host "Webroot Appears to be missing or uninstalled, lets proceed."
 
-# Install and load the right version of Atera
-if (!(Get-Module -ListAvailable PSAtera)) {
-	Install-Module -Name PSAtera -MinimumVersion 1.3.1 -Force
-}
+#Install Atera module and pre-reqs
+[System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityPotocol -bor 3072; Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force;
+Install-Module PSAtera -Force
+
 Import-Module -Name PSAtera -MinimumVersion 1.3.1
 
 Set-AteraAPIKey -APIKey $AteraAPIKey
@@ -23,7 +25,8 @@ $agent = Get-AteraAgent
 # Get the value from the Customer endpoint
 $customValue = Get-AteraCustomValue -ObjectType Customer -ObjectId $agent.CustomerID -FieldName $FieldName
 
-# This script will need to run under system context in Atera
+
+# This script will need to run under system context in order for the start-process cmdlet to initiate the installer with proper privledges
 # Check for existing paths. Create if not existant.  Kill script if write access to C: isn't available.
 function install-webroot {
     try {
@@ -47,7 +50,7 @@ function install-webroot {
     # Initiate file download, overwrite if existing
     #
     Invoke-WebRequest -Uri "https://downbox.webrootanywhere.com/wsasmeexe/wsasme.exe" -UseBasicParsing -OutFile "C:\AteraTmp\webroot\wsasme.exe"
-    Sleep 3
+    Sleep 1
     #
     # Start installation process
     #
